@@ -62,6 +62,26 @@ void page_fault_handler( struct page_table *pt, int page )
 	exit(1);
 }
 
+void fifo_handler( struct page_table *pt, int page )
+{
+	printf("page fault on page #%d\n",page);
+	exit(1);
+}
+
+void random_handler( struct page_table *pt, int page )
+{
+	printf("page fault on page #%d\n",page);
+	exit(1);
+}
+
+void custom_handler( struct page_table *pt, int page )
+{
+	printf("page fault on page #%d\n",page);
+	exit(1);
+}
+
+
+
 int main( int argc, char *argv[] )
 {
 
@@ -85,7 +105,8 @@ int main( int argc, char *argv[] )
 		}
 	}
 
-	frame_age = malloc(sizeof(int) * )
+	frame_age = malloc(sizeof(int) * nframes);
+	frame_use = malloc(sizeof(int) * nframes);
 
 	disk = disk_open("myvirtualdisk",npages);
 	if(!disk) {
@@ -94,10 +115,19 @@ int main( int argc, char *argv[] )
 	}
 
 
-	struct page_table *pt = page_table_create( npages, nframes, page_fault_handler );
-	if(!pt) {
-		fprintf(stderr,"couldn't create page table: %s\n",strerror(errno));
-		return 1;
+	struct page_table *pt;
+
+	if (strcmp(swaptype, "fifo") == 0)
+	{
+		pt = page_table_create(npages, nframes, fifo_handler);
+	}
+	else if (strcmp(swaptype, "rand") == 0)
+	{
+		pt = page_table_create(npages, nframes, random_handler);
+	}
+	else if (strcmp(swaptype, "custom") == 0)
+	{
+		pt = page_table_create(npages, nframes, random_handler);
 	}
 
 	char *virtmem = page_table_get_virtmem(pt);
