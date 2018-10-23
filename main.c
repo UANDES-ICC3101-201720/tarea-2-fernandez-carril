@@ -14,9 +14,50 @@ how to use the page table and disk interfaces.
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+struct disk *disk;
+int *frame_age;
+int *frame_use;
+
+int key_frame_oldest ()
+{
+	int max = 0;
+	int key_of_max = 0;
+	for_each_item (i, frame_age){
+		if(max < i)
+			max = i;
+	}
+	for_each_item (i, frame_age){
+		if(i == max){
+			break;
+		}
+		key_of_max++;
+	}
+	return 
+}
+
+bool frame_in_use (int frame){
+	for_each_item (i, frame_use){
+		if(i == frame)
+			return true;
+	}
+	return false;
+}
+
+void replace_frame (int key_of_frame, int page_num){
+	frame_use[key_of_frame] = page_num;
+	frame_age[key_of_frame] = 0;
+}
+	
 
 void page_fault_handler( struct page_table *pt, int page )
 {
+
+	printf("number of pages in physical memory: %d\n", page_table_get_nframes(pt));
+	printf("number of pages in virtual memory: %d\n", page_table_get_npages(pt));
+	page_table_print(pt);
+	page_table_get_npages(pt);
+	disk_write(disk, 1, page_table_get_physmem(pt));
+	page_table_set_entry(pt, 0, 0, 0);
 	printf("page fault on page #%d\n",page);
 	exit(1);
 }
@@ -33,7 +74,6 @@ int main( int argc, char *argv[] )
 	{
 		switch (opt) {
 			case 'n':
-				printf("optarg de n: %s\n", optarg);
 				npages = atoi(optarg);
 			case 'f':
 				nframes = atoi(optarg);
@@ -44,14 +84,10 @@ int main( int argc, char *argv[] )
 
 		}
 	}
-		
-	printf ("swaptype: %s\n", swaptype);
-	printf ("progeam: %s\n", program);
-	printf ("npages: %i\n", npages);
-	printf ("nframes: %i\n", nframes);
-	//int **marcos = 
 
-	struct disk *disk = disk_open("myvirtualdisk",npages);
+	frame_age = malloc(sizeof(int) * )
+
+	disk = disk_open("myvirtualdisk",npages);
 	if(!disk) {
 		fprintf(stderr,"couldn't create virtual disk: %s\n",strerror(errno));
 		return 1;
@@ -78,7 +114,7 @@ int main( int argc, char *argv[] )
 		focus_program(virtmem,npages*PAGE_SIZE);
 
 	} else {
-		fprintf(stderr,"unknown program: %s\n",argv[3]);
+		fprintf(stderr,"unknown program: %s\n",program);
 
 	}
 
