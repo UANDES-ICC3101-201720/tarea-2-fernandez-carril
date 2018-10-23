@@ -9,7 +9,7 @@ how to use the page table and disk interfaces.
 #include "page_table.h"
 #include "disk.h"
 #include "program.h"
-
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,15 +23,33 @@ void page_fault_handler( struct page_table *pt, int page )
 
 int main( int argc, char *argv[] )
 {
-	if(argc!=5) {
-		/* Add 'random' replacement algorithm if the size of your group is 3 */
-		printf("use: virtmem <npages> <nframes> <lru|fifo> <sort|scan|focus>\n");
-		return 1;
-	}
 
-	int npages = atoi(argv[1]);
-	int nframes = atoi(argv[2]);
-	const char *program = argv[4];
+	int npages;
+	int nframes;
+	char *swaptype;
+	const char *program;
+	int opt = 0;
+	while ((opt = getopt(argc, argv, "n:f:a:p:")) != -1)
+	{
+		switch (opt) {
+			case 'n':
+				printf("optarg de n: %s\n", optarg);
+				npages = atoi(optarg);
+			case 'f':
+				nframes = atoi(optarg);
+			case 'a':
+				swaptype = optarg;
+			case 'p':
+				program = optarg;
+
+		}
+	}
+		
+	printf ("swaptype: %s\n", swaptype);
+	printf ("progeam: %s\n", program);
+	printf ("npages: %i\n", npages);
+	printf ("nframes: %i\n", nframes);
+	//int **marcos = 
 
 	struct disk *disk = disk_open("myvirtualdisk",npages);
 	if(!disk) {
