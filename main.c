@@ -26,6 +26,13 @@ int *frame_use; //saves the page number, the key is the frame being used
 int init_frames = 0;
 int page_fault = 0;
 
+void print_frames (){
+	for (int i = 0 ; i<nframes; i++){
+		if(frame_use[i] != NULL)
+			printf("frame:%d, age:%d\n", frame_use[i], frame_age[i]);
+	}
+}
+
 int key_frame_oldest ()
 {
 	int max = 0;
@@ -83,6 +90,7 @@ void fifo_handler( struct page_table *pt, int page )
 	if(init_frames < nframes){
 		target = fill_mem();
 		frame_use[target] = page;
+		frame_age[target] = 0;
 		disk_write(disk, page, &physmem[target*PAGE_SIZE]);
 		page_table_set_entry(pt, page, target, PROT_READ|PROT_WRITE|PROT_EXEC);
 		disk_read(disk, page, &physmem[target*PAGE_SIZE]);
@@ -91,12 +99,12 @@ void fifo_handler( struct page_table *pt, int page )
 	}
 	else{
 		target = key_frame_oldest();
-		printf("%d\n", target);
 		page_table_set_entry(pt, frame_use[target], target, 0);
-		replace_frame(target, page);
+		printf("%d\n", target);
 		disk_write(disk, page, &physmem[target*PAGE_SIZE]);
-		page_table_set_entry(pt, frame_use[target], target, PROT_READ|PROT_WRITE|PROT_EXEC);		
 		disk_read(disk, page, &physmem[target*PAGE_SIZE]);
+		replace_frame(target, page);
+		page_table_set_entry(pt, frame_use[target], target, PROT_READ|PROT_WRITE|PROT_EXEC);
 		init_frames++;
 		age_frames();
 	}
