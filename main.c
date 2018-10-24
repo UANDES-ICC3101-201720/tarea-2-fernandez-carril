@@ -98,16 +98,17 @@ void fifo_handler( struct page_table *pt, int page )
 	}
 	else{
 		target = key_frame_oldest();
-		disk_write(disk, page, &physmem[target*PAGE_SIZE]);		
+		disk_write(disk, page, &physmem[target*PAGE_SIZE]);
+		num_disk_write++;		
 		disk_read(disk, page, &physmem[target*PAGE_SIZE]);
+		num_disk_read++;
 		page_table_set_entry(pt, page, target, PROT_READ|PROT_WRITE|PROT_EXEC);
 		page_table_set_entry(pt, frame_use[target], target, 0);
 		replace_frame(target, page);
 		init_frames++;
 		age_frames();
 	}
-	page_table_print(pt);
-	printf(" /n");
+	//page_table_print(pt);
 }
 
 void random_handler( struct page_table *pt, int page )
@@ -126,7 +127,6 @@ void random_handler( struct page_table *pt, int page )
 	}
 	else{
 		target = lrand48()%nframes;
-		printf("%d\n", target);
 		disk_write(disk, page, &physmem[target*PAGE_SIZE]);	
 		num_disk_write++;	
 		disk_read(disk, page, &physmem[target*PAGE_SIZE]);
@@ -135,7 +135,7 @@ void random_handler( struct page_table *pt, int page )
 		page_table_set_entry(pt, frame_use[target], target, 0);
 		replace_frame(target, page);	
 	}
-	page_table_print(pt);
+	//page_table_print(pt);
 }
 
 void custom_handler( struct page_table *pt, int page )
