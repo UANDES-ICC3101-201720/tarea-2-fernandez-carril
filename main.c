@@ -15,57 +15,90 @@ how to use the page table and disk interfaces.
 #include <string.h>
 #include <errno.h>
 struct disk *disk;
-int *frame_age;
-int *frame_use;
+char *physmem;
+char *virtmem;
+int npages;
+int nframes;
+char *swaptype;
+const char *program;
+int *frame_age; //saves the age of the frame in use for the key
+int *frame_use; //saves the page number
+int init_frames = 0;
+int page_fault = 0;
 
 int key_frame_oldest ()
 {
 	int max = 0;
 	int key_of_max = 0;
-	for_each_item (i, frame_age){
+	for (int i = 0 ; i<nframes; i++){
 		if(max < i)
 			max = i;
 	}
-	for_each_item (i, frame_age){
-		if(i == max){
+	for(int i = 0 ; i<nframes; i++){
+		if(frame_use[i] == max){
 			break;
 		}
 		key_of_max++;
 	}
-	return 
+	return key_of_max;
 }
-
-bool frame_in_use (int frame){
-	for_each_item (i, frame_use){
-		if(i == frame)
-			return true;
+int fill_mem(int page){
+	for(int i = 0 ; i<nframes; i++){
+		if(frame_use[i] == NULL){
+			return i;
+		}
 	}
-	return false;
+	return -1;
+}
+int frame_in_use (int frame){
+	for(int i = 0 ; i<nframes; i++){
+		if(frame_use[i] != NULL)
+			return 1;
+	}
+	return -1;
 }
 
 void replace_frame (int key_of_frame, int page_num){
 	frame_use[key_of_frame] = page_num;
 	frame_age[key_of_frame] = 0;
 }
-	
+void age_frames (){
+	for(int i = 0 ; i<nframes; i++){
+		if(frame_use[i] != NULL)
+			frame_age[i]++;
+	}
+}
 
 void page_fault_handler( struct page_table *pt, int page )
 {
-
-	printf("number of pages in physical memory: %d\n", page_table_get_nframes(pt));
-	printf("number of pages in virtual memory: %d\n", page_table_get_npages(pt));
-	page_table_print(pt);
-	page_table_get_npages(pt);
-	disk_write(disk, 1, page_table_get_physmem(pt));
-	page_table_set_entry(pt, 0, 0, 0);
 	printf("page fault on page #%d\n",page);
 	exit(1);
 }
 
 void fifo_handler( struct page_table *pt, int page )
 {
-	printf("page fault on page #%d\n",page);
-	exit(1);
+	int target;
+	page_fault++;
+	if(init_frames < nframes){
+		target = fill_mem(page);
+		frame_use[target] = page;
+		disk_write(disk, page, &physmem[target*PAGE_SIZE]);
+		page_table_set_entry(pt, page, target, PROT_READ|PROT_WRITE|PROT_EXEC);
+		disk_read(disk, page, &physmem[target*PAGE_SIZE]);
+		init_frames++;
+		age_frames();
+	}
+	else{
+		target = key_frame_oldest();
+		page_table_set_entry(pt, frame_use[target], target, 0);
+		replace_frame(target, page);
+		disk_write(disk, page, &physmem[target*PAGE_SIZE]);
+		page_table_set_entry(pt, page, target, PROT_READ|PROT_WRITE|PROT_EXEC);		
+		disk_read(disk, page, &physmem[target*PAGE_SIZE]);
+		init_frames++;
+		age_frames();
+	}
+	page_table_print(pt);
 }
 
 void random_handler( struct page_table *pt, int page )
@@ -84,11 +117,6 @@ void custom_handler( struct page_table *pt, int page )
 
 int main( int argc, char *argv[] )
 {
-
-	int npages;
-	int nframes;
-	char *swaptype;
-	const char *program;
 	int opt = 0;
 	while ((opt = getopt(argc, argv, "n:f:a:p:")) != -1)
 	{
@@ -130,9 +158,9 @@ int main( int argc, char *argv[] )
 		pt = page_table_create(npages, nframes, random_handler);
 	}
 
-	char *virtmem = page_table_get_virtmem(pt);
+	virtmem = page_table_get_virtmem(pt);
 
-	char *physmem = page_table_get_physmem(pt);
+	physmem = page_table_get_physmem(pt);
 
 	if(!strcmp(program,"sort")) {
 		sort_program(virtmem,npages*PAGE_SIZE);
@@ -147,6 +175,9 @@ int main( int argc, char *argv[] )
 		fprintf(stderr,"unknown program: %s\n",program);
 
 	}
+
+
+	printf("%d\n",page_fault);
 
 	page_table_delete(pt);
 	disk_close(disk);
