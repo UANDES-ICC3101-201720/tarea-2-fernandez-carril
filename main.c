@@ -35,18 +35,13 @@ void print_frames (){
 
 int key_frame_oldest ()
 {
-	int max = 0;
+	int max = frame_age[0];
 	int key_of_max = 0;
-	for (int i = 0 ; i<nframes; i++){
-		if(max < frame_age[i]){
-			max = frame_age[i];
-		}
-	}
 	for(int i = 0 ; i<nframes; i++){
-		if(frame_use[i] == max){
-			break;
+		if(frame_age[i] > max){
+			max = frame_age[i];
+			key_of_max = i;
 		}
-		key_of_max++;
 	}
 	return key_of_max;
 }
@@ -99,16 +94,16 @@ void fifo_handler( struct page_table *pt, int page )
 	}
 	else{
 		target = key_frame_oldest();
-		page_table_set_entry(pt, frame_use[target], target, 0);
-		printf("%d\n", target);
-		disk_write(disk, page, &physmem[target*PAGE_SIZE]);
+		disk_write(disk, page, &physmem[target*PAGE_SIZE]);		
 		disk_read(disk, page, &physmem[target*PAGE_SIZE]);
+		page_table_set_entry(pt, page, target, PROT_READ|PROT_WRITE|PROT_EXEC);
+		page_table_set_entry(pt, frame_use[target], target, 0);
 		replace_frame(target, page);
-		page_table_set_entry(pt, frame_use[target], target, PROT_READ|PROT_WRITE|PROT_EXEC);
 		init_frames++;
 		age_frames();
 	}
 	page_table_print(pt);
+	printf(" /n");
 }
 
 void random_handler( struct page_table *pt, int page )
@@ -122,7 +117,6 @@ void custom_handler( struct page_table *pt, int page )
 	printf("page fault on page #%d\n",page);
 	exit(1);
 }
-
 
 
 int main( int argc, char *argv[] )
@@ -167,6 +161,10 @@ int main( int argc, char *argv[] )
 	{
 		pt = page_table_create(npages, nframes, random_handler);
 	}
+	else
+	{
+		pt = page_table_create(npages, nframes, page_fault_handler);
+	}
 
 	virtmem = page_table_get_virtmem(pt);
 
@@ -187,7 +185,7 @@ int main( int argc, char *argv[] )
 	}
 
 
-	printf("%d\n",page_fault);
+	printf("page faults: %d\n",page_fault);
 
 	page_table_delete(pt);
 	disk_close(disk);
