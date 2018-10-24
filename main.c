@@ -25,6 +25,15 @@ int *frame_age; //saves the age of the frame in use for the key
 int *frame_use; //saves the page number, the key is the frame being used
 int init_frames = 0;
 int page_fault = 0;
+int num_disk_write = 0;
+int num_disk_read = 0;
+
+void print_frames (){
+	for (int i = 0 ; i<nframes; i++){
+		if(frame_use[i] != NULL)
+			printf("frame:%d, age:%d\n", frame_use[i], frame_age[i]);
+	}
+}
 
 int key_frame_oldest ()
 {
@@ -78,36 +87,83 @@ void fifo_handler( struct page_table *pt, int page )
 	if(init_frames < nframes){
 		target = fill_mem();
 		frame_use[target] = page;
+		frame_age[target] = 0;
 		disk_write(disk, page, &physmem[target*PAGE_SIZE]);
+		num_disk_write++;
 		page_table_set_entry(pt, page, target, PROT_READ|PROT_WRITE|PROT_EXEC);
 		disk_read(disk, page, &physmem[target*PAGE_SIZE]);
+		num_disk_read++;
 		init_frames++;
 		age_frames();
 	}
 	else{
 		target = key_frame_oldest();
-		disk_write(disk, page, &physmem[target*PAGE_SIZE]);		
+		disk_write(disk, page, &physmem[target*PAGE_SIZE]);
+		num_disk_write++;		
 		disk_read(disk, page, &physmem[target*PAGE_SIZE]);
+		num_disk_read++;
 		page_table_set_entry(pt, page, target, PROT_READ|PROT_WRITE|PROT_EXEC);
 		page_table_set_entry(pt, frame_use[target], target, 0);
 		replace_frame(target, page);
 		init_frames++;
 		age_frames();
 	}
-	page_table_print(pt);
-	printf(" /n");
+	//page_table_print(pt);
 }
 
 void random_handler( struct page_table *pt, int page )
 {
-	printf("page fault on page #%d\n",page);
-	exit(1);
+	int target;
+	page_fault++;
+	if(init_frames < nframes){
+		target = fill_mem();
+		frame_use[target] = page;
+		disk_write(disk, page, &physmem[target*PAGE_SIZE]);
+		num_disk_write++;
+		page_table_set_entry(pt, page, target, PROT_READ|PROT_WRITE|PROT_EXEC);
+		disk_read(disk, page, &physmem[target*PAGE_SIZE]);
+		num_disk_read++;
+		init_frames++;
+	}
+	else{
+		target = lrand48()%nframes;
+		disk_write(disk, page, &physmem[target*PAGE_SIZE]);	
+		num_disk_write++;	
+		disk_read(disk, page, &physmem[target*PAGE_SIZE]);
+		num_disk_read++;
+		page_table_set_entry(pt, page, target, PROT_READ|PROT_WRITE|PROT_EXEC);
+		page_table_set_entry(pt, frame_use[target], target, 0);
+		replace_frame(target, page);	
+	}
+	//page_table_print(pt);
 }
 
 void custom_handler( struct page_table *pt, int page )
 {
-	printf("page fault on page #%d\n",page);
-	exit(1);
+	int target;
+	page_fault++;
+	if(init_frames < nframes){
+		target = fill_mem();
+		frame_use[target] = page;
+		disk_write(disk, page, &physmem[target*PAGE_SIZE]);
+		num_disk_write++;
+		page_table_set_entry(pt, page, target, PROT_READ|PROT_WRITE|PROT_EXEC);
+		disk_read(disk, page, &physmem[target*PAGE_SIZE]);
+		num_disk_read++;
+		init_frames++;
+	}
+	else{
+		target = page_fault%nframes;
+		disk_write(disk, page, &physmem[target*PAGE_SIZE]);	
+		num_disk_write++;	
+		disk_read(disk, page, &physmem[target*PAGE_SIZE]);
+		num_disk_read++;
+		page_table_set_entry(pt, page, target, PROT_READ|PROT_WRITE|PROT_EXEC);
+		page_table_set_entry(pt, frame_use[target], target, 0);
+		replace_frame(target, page);
+		init_frames++;
+		age_frames();
+	}
 }
 
 
@@ -178,7 +234,8 @@ int main( int argc, char *argv[] )
 
 
 	printf("page faults: %d\n",page_fault);
-
+	printf("number of disk writes: %d\n", num_disk_write);
+	printf("number of disk reads: %d\n", num_disk_read);
 	page_table_delete(pt);
 	disk_close(disk);
 
